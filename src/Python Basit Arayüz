@@ -1,0 +1,68 @@
+import serial
+import tkinter as tk
+from tkinter import ttk
+
+
+PORT = 'COM3' 
+BAUD_RATE = 115200
+
+class YerIstasyonu:
+    def __init__(self, pencere):
+        self.pencere = pencere
+        self.pencere.title("Supernova Roket Takımı - Yer İstasyonu")
+        self.pencere.geometry("400x300")
+
+        
+        self.lbl_bno = ttk.Label(pencere, text="BNO055: Bekleniyor...", font=("Arial", 12))
+        self.lbl_bno.pack(pady=20)
+
+        self.lbl_bar = ttk.Label(pencere, text="MS5611: Bekleniyor...", font=("Arial", 12))
+        self.lbl_bar.pack(pady=20)
+
+        
+        try:
+            self.ser = serial.Serial(PORT, BAUD_RATE, timeout=0.1)
+        except:
+            self.ser = None
+            print("Porta bağlanılamadı! Lütfen PORT ismini kontrol et.")
+
+        self.veriyi_guncelle()
+
+    def paket_cozucu(self, satir):
+        """
+        Gelen ham satırı ($BNO,10,20,30*) parçalara ayırır.
+        """
+        if satir.startswith('$') and satir.endswith('*'):
+            
+            temiz_veri = satir[1:-1]
+            
+            
+            parcalar = temiz_veri.split(',')
+            
+            kimlik = parcalar[0] 
+
+            if kimlik == "BNO":
+                
+                self.lbl_bno.config(text=f"BNO055 -> X: {parcalar[1]} Y: {parcalar[2]} Z: {parcalar[3]}")
+            
+            elif kimlik == "BAR":
+                self.lbl_bar.config(text=f"MS5611 -> Basınç: {parcalar[1]} İrtifa: {parcalar[2]}")
+
+    def veriyi_guncelle(self):
+        """Her 50ms'de bir seri portu kontrol eder."""
+        if self.ser and self.ser.in_waiting > 0:
+            try:
+                
+                ham_satir = self.ser.readline().decode('utf-8').strip()
+                self.paket_cozucu(ham_satir)
+            except:
+                pass
+        
+        
+        self.pencere.after(50, self.veriyi_guncelle)
+
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = YerIstasyonu(root)
+    root.mainloop()
